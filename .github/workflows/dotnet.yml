@@ -1,0 +1,103 @@
+name: .NET CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Find Test Projects
+        id: find-tests
+        run: |
+          if (Get-ChildItem -Path . -Recurse -Filter *.Tests.csproj | Select-String -Pattern . -Quiet) {
+            echo "HAS_TESTS=true" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "HAS_TESTS=false" >> $env:GITHUB_OUTPUT
+          }
+        shell: pwsh
+
+      - name: Run Tests
+        if: steps.find-tests.outputs.HAS_TESTS == 'true'
+        run: |
+          dotnet test --no-build --verbosity normal \
+            --configuration Release \
+            --logger "trx;LogFileName=test-results.trx" \
+            --results-directory "./TestResults"
+        continue-on-error: true
+
+      - name: Publish Test Results
+        if: always() && steps.find-tests.outputs.HAS_TESTS == 'true' && (success() || failure())
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Results
+          path: '**/TestResults/*.trx'
+          reporter: dotnet-trx
+
+      - name: Publish
+        run: |
+          dotnet publish \
+            --configuration Release \
+            --output ./publish \
+            --no-build \
+            -p:EnvironmentName=Production
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: microjobboard-api
+          path: ./publish/**/*
+          retention-days: 5
+
+  deploy:
+    name: Deploy to AWS EC2
+    runs-on: ubuntu-latest
+    needs: build   # ensures deploy runs only after successful build
+
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: microjobboard-api
+          path: ./publish
+
+      - name: Copy Files to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ${{ secrets.AWS_EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "./publish/*"
+          target: "/var/www/dotnetapi"
+
+      - name: Restart .NET API on EC2
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ${{ secrets.AWS_EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Stopping existing API (if running)..."
+            pkill dotnet || true
+
+            echo "Starting new API..."
+            nohup dotnet /var/www/dotnetapi/MicroJobBoard.API.dll --urls "http://0.0.0.0:5000" > /var/www/dotnetapi/app.log 2>&1 &
+            echo "Deployment completed successfully!"
