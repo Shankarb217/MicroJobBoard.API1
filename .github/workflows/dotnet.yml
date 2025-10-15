@@ -8,28 +8,34 @@ on:
 
 jobs:
   build:
-    name: Build and Test
+    name: Build, Test & Migrate
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout code
       - uses: actions/checkout@v4
 
+      # 2. Setup .NET 8 SDK
       - name: Setup .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
+      # 3. Install dotnet-ef globally
       - name: Install dotnet-ef tool
         run: |
-          dotnet tool install --global dotnet-ef --version 8.0.0
+          dotnet tool install --global dotnet-ef --version 8.0.0 || true
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
+      # 4. Restore dependencies
       - name: Restore dependencies
         run: dotnet restore
 
+      # 5. Build project
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
+      # 6. Optional: Run unit tests
       - name: Find Test Projects
         id: find-tests
         run: |
@@ -57,23 +63,27 @@ jobs:
           path: '**/TestResults/*.trx'
           reporter: dotnet-trx
 
-      # ---------------------------
-      # Run EF Migrations before publishing (optional)
-      # ---------------------------
+      # 7. Debug: List project files (Optional)
+      - name: Debug: List Project Files
+        run: ls -R ./MicroJobBoard.API
+
+      # 8. Apply EF Core migrations on RDS
       - name: Apply EF Core Migrations
         env:
           ConnectionStrings__DefaultConnection: ${{ secrets.RDS_CONNECTION_STRING }}
-        run: |
-          dotnet ef database update --project MicroJobBoard.API
+        working-directory: ./MicroJobBoard.API
+        run: dotnet ef database update --no-build --project MicroJobBoard.API.csproj
 
+      # 9. Publish API
       - name: Publish
         run: |
-          dotnet publish \
+          dotnet publish ./MicroJobBoard.API/MicroJobBoard.API.csproj \
             --configuration Release \
             --output ./publish \
             --no-build \
             -p:EnvironmentName=Production
 
+      # 10. Upload artifact for deploy
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -87,12 +97,14 @@ jobs:
     needs: build
 
     steps:
+      # 1. Download artifact
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
           name: microjobboard-api
           path: ./publish
 
+      # 2. Copy files to EC2
       - name: Copy Files to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -102,6 +114,7 @@ jobs:
           source: "./publish/*"
           target: "/var/www/dotnetapi"
 
+      # 3. Restart API on EC2
       - name: Restart .NET API on EC2
         uses: appleboy/ssh-action@v0.1.8
         with:
