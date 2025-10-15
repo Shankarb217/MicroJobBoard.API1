@@ -5,20 +5,20 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <!-- Needed for EF migrations in published output -->
+    <!-- Required for EF Core migrations after publish -->
     <PreserveCompilationContext>true</PreserveCompilationContext>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
 
-    <!-- Optional: Local secrets support -->
+    <!-- Optional: Local development secrets -->
     <UserSecretsId>MicroJobBoard.API</UserSecretsId>
 
-    <!-- Optional: Enable XML documentation -->
+    <!-- Optional: XML docs and latest C# features -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <LangVersion>preview</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Authentication & OpenAPI / Swagger -->
+    <!-- Authentication & Swagger/OpenAPI -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
@@ -43,17 +43,12 @@
     <PackageReference Include="FluentValidation" Version="11.9.0" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
 
-    <!-- Password hashing / Security -->
+    <!-- Security / Password hashing -->
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 
     <!-- Logging / Production-ready -->
     <PackageReference Include="Serilog.AspNetCore" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Optional: Project references or test projects -->
-    <!-- <ProjectReference Include="..\YourProject.Tests\YourProject.Tests.csproj" /> -->
   </ItemGroup>
 
 </Project>
