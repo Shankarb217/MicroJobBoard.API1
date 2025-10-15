@@ -1,0 +1,23 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "REPLACE_WITH_RDS_CONNECTION_STRING"
+  },
+  "JwtSettings": {
+    "SecretKey": "REPLACE_WITH_STRONG_JWT_SECRET_KEY",
+    "Issuer": "MicroJobBoardAPI",
+    "Audience": "MicroJobBoardClient",
+    "ExpiryInMinutes": 60
+  },
+  "Cors": {
+    "AllowedOrigins": [
+      "REPLACE_WITH_FRONTEND_URL"
+    ]
+  }
+}

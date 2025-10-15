@@ -166,8 +166,8 @@ else
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", "Micro Job Board API v1"));
 }
 
-// Enforce HTTPS
-app.UseHttpsRedirection();
+// HTTPS redirection disabled for HTTP-only deployment
+// app.UseHttpsRedirection();
 
 // Enable CORS
 app.UseCors("AllowReactApp");

@@ -164,21 +164,32 @@ Update `appsettings.json` to add more origins if needed.
 - JWT tokens expire after 60 minutes (configurable)
 - Role-based authorization is enforced
 - SQL injection prevention via EF Core parameterized queries
-- HTTPS enforced in production
+- HTTP deployment (HTTPS optional for production)
 
 ## Deployment
 
-### Production Checklist
+### AWS EC2 Deployment
 
-1. Update `appsettings.Production.json` with production values
-2. Change JWT secret key to a strong random value
-3. Update database connection string
-4. Configure CORS for production domain
-5. Enable HTTPS
-6. Set up proper logging
-7. Configure health checks
+This project includes automated CI/CD deployment to AWS EC2 with RDS MSSQL Server.
 
-### Publish
+**📚 Deployment Guides:**
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete EC2 setup and deployment guide
+- **[GITHUB_SECRETS_SETUP.md](./GITHUB_SECRETS_SETUP.md)** - GitHub secrets configuration
+- **[HTTP_DEPLOYMENT_NOTE.md](./HTTP_DEPLOYMENT_NOTE.md)** - HTTP-only deployment details
+- **[microjobboard-api.service](./microjobboard-api.service)** - Systemd service file
+
+**Quick Start:**
+1. Set up EC2 instance with .NET 8 runtime
+2. Configure GitHub secrets (see GITHUB_SECRETS_SETUP.md)
+3. Copy systemd service file to EC2
+4. Push to `main` branch to trigger deployment
+
+**GitHub Actions Workflow:**
+- Automatically builds, tests, and deploys on push to `main`
+- Uses systemd for service management
+- Dynamically generates production config from secrets
+
+### Manual Publish
 
 ```bash
 dotnet publish -c Release -o ./publish
