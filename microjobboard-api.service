@@ -3,7 +3,7 @@ Description=MicroJobBoard .NET API
 After=network.target
 
 [Service]
-Type=notify
+Type=simple
 User=ubuntu
 Group=ubuntu
 WorkingDirectory=/var/www/dotnetapi
