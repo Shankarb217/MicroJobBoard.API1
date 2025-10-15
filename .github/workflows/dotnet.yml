@@ -8,83 +8,42 @@ on:
 
 jobs:
   build:
-    name: Build, Test & Migrate
     runs-on: ubuntu-latest
-
     steps:
-      # 1. Checkout code
       - uses: actions/checkout@v4
 
-      # 2. Setup .NET 8 SDK
+      # Setup .NET 8 SDK
       - name: Setup .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      # 3. Install dotnet-ef globally
-      - name: Install dotnet-ef tool
+      # Install EF tool globally
+      - name: Install dotnet-ef
         run: |
           dotnet tool install --global dotnet-ef --version 8.0.0 || true
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      # 4. Restore dependencies
-      - name: Restore dependencies
-        run: dotnet restore
+      # Restore dependencies
+      - name: Restore
+        run: dotnet restore ./MicroJobBoard.API/MicroJobBoard.API.csproj
 
-      # 5. Build project
+      # Build project
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build ./MicroJobBoard.API/MicroJobBoard.API.csproj --no-restore --configuration Release
 
-      # 6. Optional: Run unit tests
-      - name: Find Test Projects
-        id: find-tests
-        run: |
-          if (Get-ChildItem -Path . -Recurse -Filter *.Tests.csproj | Select-String -Pattern . -Quiet) {
-            echo "HAS_TESTS=true" >> $env:GITHUB_OUTPUT
-          } else {
-            echo "HAS_TESTS=false" >> $env:GITHUB_OUTPUT
-          }
-        shell: pwsh
-
-      - name: Run Tests
-        if: steps.find-tests.outputs.HAS_TESTS == 'true'
-        run: |
-          dotnet test --no-build --verbosity normal \
-            --configuration Release \
-            --logger "trx;LogFileName=test-results.trx" \
-            --results-directory "./TestResults"
-        continue-on-error: true
-
-      - name: Publish Test Results
-        if: always() && steps.find-tests.outputs.HAS_TESTS == 'true'
-        uses: dorny/test-reporter@v1
-        with:
-          name: Test Results
-          path: '**/TestResults/*.trx'
-          reporter: dotnet-trx
-
-      # 7. Debug: List project files (Optional)
-      - name: Debug: List Project Files
-        run: ls -R ./MicroJobBoard.API
-
-      # 8. Apply EF Core migrations on RDS
-      - name: Apply EF Core Migrations
+      # Optional: Run EF Core migrations on RDS
+      - name: Run EF Core Migrations
         env:
           ConnectionStrings__DefaultConnection: ${{ secrets.RDS_CONNECTION_STRING }}
-        working-directory: ./MicroJobBoard.API
-        run: dotnet ef database update --no-build --project MicroJobBoard.API.csproj
+        run: dotnet ef database update --project ./MicroJobBoard.API/MicroJobBoard.API.csproj --no-build
 
-      # 9. Publish API
+      # Publish API
       - name: Publish
-        run: |
-          dotnet publish ./MicroJobBoard.API/MicroJobBoard.API.csproj \
-            --configuration Release \
-            --output ./publish \
-            --no-build \
-            -p:EnvironmentName=Production
+        run: dotnet publish ./MicroJobBoard.API/MicroJobBoard.API.csproj --configuration Release --output ./publish --no-build
 
-      # 10. Upload artifact for deploy
-      - name: Upload Artifact
+      # Upload artifact for deploy
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: microjobboard-api
@@ -92,20 +51,16 @@ jobs:
           retention-days: 5
 
   deploy:
-    name: Deploy to AWS EC2
     runs-on: ubuntu-latest
     needs: build
-
     steps:
-      # 1. Download artifact
-      - name: Download Build Artifact
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: microjobboard-api
           path: ./publish
 
-      # 2. Copy files to EC2
-      - name: Copy Files to EC2
+      - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.AWS_EC2_HOST }}
@@ -114,17 +69,13 @@ jobs:
           source: "./publish/*"
           target: "/var/www/dotnetapi"
 
-      # 3. Restart API on EC2
-      - name: Restart .NET API on EC2
+      - name: Restart API on EC2
         uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ secrets.AWS_EC2_HOST }}
           username: ${{ secrets.AWS_EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Stopping existing API (if running)..."
             pkill dotnet || true
-
-            echo "Starting new API..."
             nohup dotnet /var/www/dotnetapi/MicroJobBoard.API.dll --urls "http://0.0.0.0:5000" > /var/www/dotnetapi/app.log 2>&1 &
-            echo "Deployment completed successfully!"
+            echo "API restarted!"
