@@ -10,44 +10,48 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Checkout code
+      # 1️⃣ Checkout code
       - uses: actions/checkout@v4
 
-      # Debug: list files to verify .csproj location
-      - name: Debug: List repo files
+      # 2️⃣ Debug: List files to verify .csproj location
+      - name: Debug: List repository files
         run: ls -R
 
-      # Setup .NET 8 SDK
+      # 3️⃣ Setup .NET 8 SDK
       - name: Setup .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      # Install dotnet-ef globally
+      # 4️⃣ Install dotnet-ef globally and set PATH
       - name: Install dotnet-ef
         run: |
           dotnet tool install --global dotnet-ef --version 8.0.0 || true
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      # Restore dependencies
+      # 5️⃣ Debug EF availability
+      - name: Debug dotnet-ef
+        run: dotnet ef --version
+
+      # 6️⃣ Restore dependencies
       - name: Restore
         run: dotnet restore MicroJobBoard.API/MicroJobBoard.API.csproj
 
-      # Build project
+      # 7️⃣ Build project
       - name: Build
-        run: dotnet build MicroJobBoard.API/MicroJobBoard.API.csproj --no-restore --configuration Release
+        run: dotnet build MicroJobBoard.API/MicroJobBoard.API.csproj --configuration Release
 
-      # Optional: Run EF Core Migrations on AWS RDS
+      # 8️⃣ Apply EF Core migrations
       - name: Run EF Core Migrations
         env:
           ConnectionStrings__DefaultConnection: ${{ secrets.RDS_CONNECTION_STRING }}
-        run: dotnet ef database update --project MicroJobBoard.API/MicroJobBoard.API.csproj --no-build
+        run: dotnet ef database update --project MicroJobBoard.API/MicroJobBoard.API.csproj
 
-      # Publish project
+      # 9️⃣ Publish project
       - name: Publish
-        run: dotnet publish MicroJobBoard.API/MicroJobBoard.API.csproj --configuration Release --output ./publish --no-build
+        run: dotnet publish MicroJobBoard.API/MicroJobBoard.API.csproj --configuration Release --output ./publish
 
-      # Upload artifact for deploy
+      # 🔟 Upload artifact for deploy
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -59,14 +63,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      # Download the published artifact
+      # 1️⃣ Download the published artifact
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: microjobboard-api
           path: ./publish
 
-      # Copy files to AWS EC2
+      # 2️⃣ Copy files to AWS EC2
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -76,7 +80,7 @@ jobs:
           source: "./publish/*"
           target: "/var/www/dotnetapi"
 
-      # Restart the API on EC2
+      # 3️⃣ Restart API on EC2
       - name: Restart API on EC2
         uses: appleboy/ssh-action@v0.1.8
         with:
