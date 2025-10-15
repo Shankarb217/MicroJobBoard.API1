@@ -1,4 +1,4 @@
-name: .NET CI/CD Pipeline
+name: .NET 8 CI/CD Pipeline
 
 on:
   push:
@@ -14,10 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - name: Install dotnet-ef tool
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.0.0
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       - name: Restore dependencies
         run: dotnet restore
@@ -45,12 +50,21 @@ jobs:
         continue-on-error: true
 
       - name: Publish Test Results
-        if: always() && steps.find-tests.outputs.HAS_TESTS == 'true' && (success() || failure())
+        if: always() && steps.find-tests.outputs.HAS_TESTS == 'true'
         uses: dorny/test-reporter@v1
         with:
           name: Test Results
           path: '**/TestResults/*.trx'
           reporter: dotnet-trx
+
+      # ---------------------------
+      # Run EF Migrations before publishing (optional)
+      # ---------------------------
+      - name: Apply EF Core Migrations
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.RDS_CONNECTION_STRING }}
+        run: |
+          dotnet ef database update --project MicroJobBoard.API
 
       - name: Publish
         run: |
@@ -70,7 +84,7 @@ jobs:
   deploy:
     name: Deploy to AWS EC2
     runs-on: ubuntu-latest
-    needs: build   # ensures deploy runs only after successful build
+    needs: build
 
     steps:
       - name: Download Build Artifact
