@@ -43,9 +43,4 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
   </ItemGroup>
 
-  <!-- EF Core tooling for migrations -->
-  <ItemGroup>
-    <DotNetCliToolReference Include="dotnet-ef" Version="8.0.0" />
-  </ItemGroup>
-
 </Project>
