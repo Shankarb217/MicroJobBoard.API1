@@ -9,11 +9,16 @@ using MicroJobBoard.API.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ---------------------------
 // Add services to the container
+// ---------------------------
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+// ---------------------------
 // Configure Swagger with JWT support
+// ---------------------------
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -23,7 +28,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "REST API for Micro Job Board Platform"
     });
 
-    // Add JWT Authentication to Swagger
+    // JWT Authentication in Swagger
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -50,13 +55,26 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Configure Database
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// ---------------------------
+// Configure Database (SQL Server / AWS RDS)
+// ---------------------------
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                       ?? throw new InvalidOperationException("DefaultConnection not found in configuration");
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null); // retry on transient failures
+    });
+});
+
+// ---------------------------
 // Configure JWT Authentication
+// ---------------------------
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key not configured");
+var secretKey = jwtSettings["SecretKey"] 
+                ?? throw new InvalidOperationException("JWT Secret Key not configured");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -79,8 +97,12 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// ---------------------------
 // Configure CORS
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+// ---------------------------
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+                     ?? Array.Empty<string>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
@@ -92,26 +114,42 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ---------------------------
 // Configure AutoMapper
+// ---------------------------
 builder.Services.AddAutoMapper(typeof(Program));
 
-// Register Services
+// ---------------------------
+// Register Application Services (DI)
+// ---------------------------
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 
+// ---------------------------
+// Build App
+// ---------------------------
 var app = builder.Build();
 
-// Seed the database
+// ---------------------------
+// Apply EF Migrations Automatically (optional, production-friendly)
+// ---------------------------
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
+
+    // Apply pending migrations automatically
+    context.Database.Migrate();
+
+    // Seed initial data
     SeedData.Initialize(context);
 }
 
-// Configure the HTTP request pipeline
+// ---------------------------
+// Configure HTTP request pipeline
+// ---------------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -121,14 +159,25 @@ if (app.Environment.IsDevelopment())
         options.RoutePrefix = string.Empty; // Swagger at root
     });
 }
+else
+{
+    // In production, use Swagger only if needed
+    app.UseSwagger();
+    app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", "Micro Job Board API v1"));
+}
 
+// Enforce HTTPS
 app.UseHttpsRedirection();
 
+// Enable CORS
 app.UseCors("AllowReactApp");
 
+// Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Map controllers
 app.MapControllers();
 
+// Run the app
 app.Run();
