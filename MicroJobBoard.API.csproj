@@ -4,15 +4,24 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Needed for EF migrations in published output -->
+    <PreserveCompilationContext>true</PreserveCompilationContext>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
-    <UserSecretsId>MicroJobBoard.API</UserSecretsId> <!-- optional: for local secrets -->
-    <PreserveCompilationContext>true</PreserveCompilationContext> <!-- needed for EF migrations in publish -->
+
+    <!-- Optional: Local secrets support -->
+    <UserSecretsId>MicroJobBoard.API</UserSecretsId>
+
+    <!-- Optional: Enable XML documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Authentication & OpenAPI -->
+    <!-- Authentication & OpenAPI / Swagger -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
 
     <!-- Entity Framework Core -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
@@ -26,21 +35,25 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
 
-    <!-- Mapping & Validation -->
+    <!-- AutoMapper -->
     <PackageReference Include="AutoMapper" Version="12.0.1" />
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+
+    <!-- FluentValidation -->
     <PackageReference Include="FluentValidation" Version="11.9.0" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
 
-    <!-- Security -->
+    <!-- Password hashing / Security -->
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 
-    <!-- Swagger / OpenAPI -->
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-
-    <!-- Optional: Logging, production readiness -->
+    <!-- Logging / Production-ready -->
     <PackageReference Include="Serilog.AspNetCore" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Optional: Project references or test projects -->
+    <!-- <ProjectReference Include="..\YourProject.Tests\YourProject.Tests.csproj" /> -->
   </ItemGroup>
 
 </Project>
